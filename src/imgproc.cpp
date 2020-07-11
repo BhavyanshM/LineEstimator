@@ -10,14 +10,14 @@ void preProcessImage(const Mat& image, Mat& processed){
     GaussianBlur(processed,processed, Size(3,3),20);
 }
 
-void getLines(const Mat& img, vector<Vec4i>& lines, Mat& edges){
+void getHoughLines(const Mat& img, vector<Vec4i>& lines, Mat& edges){
     Canny(img,edges,30,500, 5, false);
     HoughLinesP(edges,lines,1,M_PI/180, 10,60,3);
 }
 
-void getLines(const Mat& img, vector<Vec4i>& lines){
+void getHoughLines(const Mat& img, vector<Vec4i>& lines){
     Mat edges;
-    getLines(img,lines,edges);
+    getHoughLines(img,lines,edges);
 }
 
 void initFusedLines(vector<Vec4i>& lines, vector<FusedLine>& fusedLines){
@@ -81,14 +81,14 @@ void extendLine(const Mat& img, Mat& disp, Vector2f& endPoint, Vector2f midPoint
             Rect midROI(midPoint.x()-3, midPoint.y()-3, 6,6);
             Mat midPatch = img(midROI);
             dist = norm(initPatch, midPatch);
-            cout << "Count:" << count << "\tNORM:" << dist << endl;
+            // cout << "Count:" << count << "\tNORM:" << dist << endl;
             if (abs(dist) < threshold){
                 line( disp, Point(endPoint.x(), endPoint.y()),
                       Point(newEndPoint.x(), newEndPoint.y()),
                       Scalar(100,100,255), 3);
                 endPoint = newEndPoint;
             }else{
-                cout << "HIGH DIST:" << dist << endl;
+                // cout << "HIGH DIST:" << dist << endl;
             }
             // imshow("Extender",disp);if(waitKeyEx(100)==113)break;
             prevDist = dist;
@@ -106,13 +106,44 @@ void growLineRegions(const Mat& img, Mat& disp, vector<Vec4i>& lines){
         Vector2f dir1(ep1-ep2),dir2(ep2-ep1);
         extendLine(img, disp, ep1, (ep1+ep2)/2, dir1/dir1.norm());
         extendLine(img, disp, ep2, (ep1+ep2)/2, dir2/dir2.norm());
-        printf("%d %d %d %d\t:\t%.2f %.2f %.2f %.2f\n",l[0],l[1],l[2],l[3],ep1.x(),ep1.y(),ep2.x(),ep2.y());
+        // printf("%d %d %d %d\t:\t%.2f %.2f %.2f %.2f\n",l[0],l[1],l[2],l[3],ep1.x(),ep1.y(),ep2.x(),ep2.y());
         lines[i][0] = ep1.x();
         lines[i][1] = ep1.y();
         lines[i][2] = ep2.x();
         lines[i][3] = ep2.y();
     }
 }
+
+void getORBFeatures(Mat& image, vector<KeyPoint> kpoints, Mat& descriptors){
+    Ptr<FeatureDetector> detector = ORB::create();
+    Ptr<DescriptorExtractor> descriptor = ORB::create();
+    Ptr<DescriptorMatcher> matcher  = DescriptorMatcher::create ( "BruteForce-Hamming" );
+
+    detector->detect(image, kpoints, descriptors);
+    descriptor->compute(image, kpoints, descriptors);
+
+    drawKeypoints( image, kpoints, image, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
+
+}
+
+void getFLDLines(Mat& image, Mat& gray, vector<Vec4f>& klines){
+    Ptr<FastLineDetector> fld = createFastLineDetector(50,1.41421356f,
+            50, 50, 3,true);
+    fld->detect(gray, klines);
+
+    for (auto l : klines){
+        line( image, Point(l[0], l[1]),
+              Point(l[2], l[3]),
+              Scalar(0,255,255), 3);
+    }
+
+    // fld->drawSegments(image, klines);
+    cout << klines.size() << endl;
+}
+
+
+
+
 
 
 
